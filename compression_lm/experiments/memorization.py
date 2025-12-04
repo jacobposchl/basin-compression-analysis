@@ -1,6 +1,7 @@
 """Memorization experiment implementation."""
 
 import numpy as np
+import torch
 from typing import Dict, List, Optional
 import matplotlib.pyplot as plt
 
@@ -141,7 +142,9 @@ def run_memorization_experiment(
     texts: List[str],
     k_neighbors: int = 15,
     max_sequences: Optional[int] = None,
-    max_length: int = 128
+    max_length: int = 128,
+    memorization_threshold: float = 0.8,
+    device: Optional[torch.device] = None
 ) -> Dict[int, Dict]:
     """
     Complete pipeline for memorization experiment.
@@ -170,7 +173,7 @@ def run_memorization_experiment(
     # Step 1: Detect memorized sequences
     print("\n1. Detecting memorized sequences...")
     memorization_labels, reproduction_accuracy = detect_memorized_sequences(
-        model, tokenizer, texts
+        model, tokenizer, texts, threshold=memorization_threshold, device=device
     )
     
     n_memorized = sum(memorization_labels)

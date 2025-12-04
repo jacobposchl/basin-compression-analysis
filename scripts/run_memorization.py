@@ -30,6 +30,10 @@ def main():
                        help='Dataset to use')
     parser.add_argument('--use_small_dataset', action='store_true',
                        help='Use WikiText-2 (smaller) instead of WikiText-103 for faster testing')
+    parser.add_argument('--memorization_threshold', type=float, default=0.8,
+                       help='Accuracy threshold for considering a sequence memorized (default: 0.8)')
+    parser.add_argument('--use_train_split', action='store_true',
+                       help='Use training split instead of test split (more likely to find memorized sequences)')
     
     args = parser.parse_args()
     
@@ -43,8 +47,9 @@ def main():
     
     # Load data
     print("\nLoading dataset...")
+    split = 'train' if args.use_train_split else 'test'
     if args.dataset == 'wikitext':
-        texts = load_wikitext(split='test', max_samples=args.max_sequences, use_small=args.use_small_dataset)
+        texts = load_wikitext(split=split, max_samples=args.max_sequences, use_small=args.use_small_dataset)
     else:
         raise ValueError(f"Unknown dataset: {args.dataset}")
     
@@ -56,7 +61,9 @@ def main():
         texts=texts,
         k_neighbors=args.k_neighbors,
         max_sequences=args.max_sequences,
-        max_length=args.max_length
+        max_length=args.max_length,
+        memorization_threshold=args.memorization_threshold,
+        device=device
     )
     
     # Save results

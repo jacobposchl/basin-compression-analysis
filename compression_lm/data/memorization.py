@@ -76,12 +76,22 @@ def detect_memorized_sequences(
             
             # Compare to ground truth
             min_len = min(len(generated_ids), len(target_ids))
-            matches = sum([g == t for g, t in zip(generated_ids[:min_len], target_ids[:min_len])])
-            accuracy = matches / len(target_ids) if len(target_ids) > 0 else 0.0
+            if min_len == 0:
+                accuracy = 0.0
+            else:
+                matches = sum([g == t for g, t in zip(generated_ids[:min_len], target_ids[:min_len])])
+                accuracy = matches / len(target_ids) if len(target_ids) > 0 else 0.0
             
             # Consider memorized if above threshold
-            is_memorized = accuracy > threshold
+            # Also check if first few tokens match exactly (stronger signal)
+            first_tokens_match = False
+            if min_len >= 5:
+                first_5_match = all(g == t for g, t in zip(generated_ids[:5], target_ids[:5]))
+                if first_5_match and accuracy > 0.5:  # First tokens match + decent overall accuracy
+                    first_tokens_match = True
             
+            is_memorized = accuracy > threshold or first_tokens_match
+                
             memorization_labels.append(is_memorized)
             reproduction_accuracy.append(accuracy)
         except Exception as e:
