@@ -55,11 +55,23 @@ def analyze_memorization_compression(
     memorized_compression = sequence_compression[sequence_memorization]
     novel_compression = sequence_compression[~sequence_memorization]
     
-    # T-test
-    t_stat, t_p_value = run_ttest(memorized_compression, novel_compression)
-    
-    # Point-biserial correlation (for binary memorization label)
-    corr, corr_p = point_biserial_correlation(sequence_compression, sequence_memorization)
+    # Handle case where there are no memorized sequences
+    if len(memorized_compression) == 0:
+        print(f"  Warning: No memorized sequences found. Cannot compute correlation.")
+        print(f"  This is normal if the model wasn't trained on this dataset.")
+        print(f"  Consider using WikiText-103 (without --use_small_dataset) or fine-tuning the model.")
+        t_stat, t_p_value = np.nan, np.nan
+        corr, corr_p = np.nan, np.nan
+    elif len(novel_compression) == 0:
+        print(f"  Warning: All sequences are memorized. Cannot compute correlation.")
+        t_stat, t_p_value = np.nan, np.nan
+        corr, corr_p = np.nan, np.nan
+    else:
+        # T-test
+        t_stat, t_p_value = run_ttest(memorized_compression, novel_compression)
+        
+        # Point-biserial correlation (for binary memorization label)
+        corr, corr_p = point_biserial_correlation(sequence_compression, sequence_memorization)
     
     # Results dictionary
     results = {
@@ -80,21 +92,32 @@ def analyze_memorization_compression(
     
     # Print summary
     print(f"\nMemorization Analysis (Layer {layer_idx}):")
-    print(f"  Correlation (point-biserial): r = {corr:.4f}, p = {corr_p:.4e}")
+    if not np.isnan(corr):
+        print(f"  Correlation (point-biserial): r = {corr:.4f}, p = {corr_p:.4e}")
+    else:
+        print(f"  Correlation (point-biserial): r = nan, p = nan")
+    
     if len(memorized_compression) > 0:
         print(f"  Memorized sequences: mean = {memorized_compression.mean():.4f}, std = {memorized_compression.std():.4f}, n = {len(memorized_compression)}")
     if len(novel_compression) > 0:
         print(f"  Novel sequences: mean = {novel_compression.mean():.4f}, std = {novel_compression.std():.4f}, n = {len(novel_compression)}")
     if len(memorized_compression) > 0 and len(novel_compression) > 0:
         print(f"  Difference: {memorized_compression.mean() - novel_compression.mean():.4f}")
-    print(f"  T-test: t = {t_stat:.4f}, p = {t_p_value:.4e}")
     
-    if abs(corr) > 0.4 and corr_p < 0.01:
-        print("  ✓ SUCCESS: Strong significant correlation!")
-    elif abs(corr) > 0.2 and corr_p < 0.05:
-        print("  ~ MODERATE: Weak to moderate correlation")
+    if not np.isnan(t_stat):
+        print(f"  T-test: t = {t_stat:.4f}, p = {t_p_value:.4e}")
     else:
-        print("  ✗ WEAK: No significant correlation")
+        print(f"  T-test: t = nan, p = nan")
+    
+    if not np.isnan(corr):
+        if abs(corr) > 0.4 and corr_p < 0.01:
+            print("  ✓ SUCCESS: Strong significant correlation!")
+        elif abs(corr) > 0.2 and corr_p < 0.05:
+            print("  ~ MODERATE: Weak to moderate correlation")
+        else:
+            print("  ✗ WEAK: No significant correlation")
+    else:
+        print("  ✗ WEAK: No significant correlation (no memorized sequences found)")
     
     return results
 

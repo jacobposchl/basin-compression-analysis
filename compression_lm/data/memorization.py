@@ -49,11 +49,12 @@ def detect_memorized_sequences(
             continue
         
         # Split into prompt and target
-        split_point = len(token_ids) // 3  # Use first third as prompt
+        # Use first 30% as prompt, rest as target
+        split_point = max(1, int(len(token_ids) * 0.3))
         prompt_ids = token_ids[:split_point]
         target_ids = token_ids[split_point:]
         
-        if len(target_ids) == 0:
+        if len(target_ids) == 0 or len(prompt_ids) == 0:
             memorization_labels.append(False)
             reproduction_accuracy.append(0.0)
             continue
