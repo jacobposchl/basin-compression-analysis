@@ -38,6 +38,23 @@ python -m spacy download en_core_web_sm
 
 ## Quick Start
 
+### Google Colab Setup
+
+For running in Google Colab, see **[COLAB_GUIDE.md](COLAB_GUIDE.md)** for detailed instructions, or use the provided notebook: **[notebooks/colab_setup.ipynb](notebooks/colab_setup.ipynb)**
+
+Quick Colab setup:
+```python
+!pip install -q torch transformers numpy scipy scikit-learn faiss-cpu nltk matplotlib seaborn pandas tqdm datasets statsmodels
+import nltk
+nltk.download('punkt', quiet=True)
+nltk.download('averaged_perceptron_tagger', quiet=True)
+nltk.download('universal_tagset', quiet=True)
+
+!git clone https://github.com/YOUR_USERNAME/basin-compression-analysis.git
+%cd basin-compression-analysis
+!pip install -e .
+```
+
 ### Running Individual Experiments
 
 ```bash
