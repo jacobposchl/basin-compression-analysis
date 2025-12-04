@@ -28,6 +28,8 @@ def main():
     parser.add_argument('--dataset', type=str, default='wikitext',
                        choices=['wikitext'],
                        help='Dataset to use')
+    parser.add_argument('--use_small_dataset', action='store_true',
+                       help='Use WikiText-2 (smaller) instead of WikiText-103 for faster testing')
     
     args = parser.parse_args()
     
@@ -42,7 +44,7 @@ def main():
     # Load data
     print("\nLoading dataset...")
     if args.dataset == 'wikitext':
-        texts = load_wikitext(split='test', max_samples=args.max_sequences)
+        texts = load_wikitext(split='test', max_samples=args.max_sequences, use_small=args.use_small_dataset)
     else:
         raise ValueError(f"Unknown dataset: {args.dataset}")
     

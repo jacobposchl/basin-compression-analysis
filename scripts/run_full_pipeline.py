@@ -33,6 +33,8 @@ def main():
                        help='Skip token importance experiment')
     parser.add_argument('--skip_linguistic', action='store_true',
                        help='Skip linguistic experiment')
+    parser.add_argument('--use_small_dataset', action='store_true',
+                       help='Use WikiText-2 (smaller) instead of WikiText-103 for faster testing')
     
     args = parser.parse_args()
     
@@ -49,7 +51,7 @@ def main():
     
     # Load data
     print("\nLoading dataset...")
-    texts = load_wikitext(split='test', max_samples=args.max_sequences)
+    texts = load_wikitext(split='test', max_samples=args.max_sequences, use_small=args.use_small_dataset)
     
     memorization_results = None
     importance_results = None

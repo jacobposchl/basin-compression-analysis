@@ -48,18 +48,20 @@ print("Setup successful!")
 ### Option 1: Using Command Line Scripts
 
 ```python
-# Memorization experiment
-!python scripts/run_memorization.py --max_sequences 100 --k_neighbors 15
+# Memorization experiment (use --use_small_dataset for faster testing)
+!python scripts/run_memorization.py --max_sequences 100 --k_neighbors 15 --use_small_dataset
 
 # Token importance experiment  
-!python scripts/run_token_importance.py --max_sequences 50 --k_neighbors 15
+!python scripts/run_token_importance.py --max_sequences 50 --k_neighbors 15 --use_small_dataset
 
 # Linguistic structure experiment
-!python scripts/run_linguistic.py --max_sequences 100 --k_neighbors 15
+!python scripts/run_linguistic.py --max_sequences 100 --k_neighbors 15 --use_small_dataset
 
 # Full pipeline (all experiments)
-!python scripts/run_full_pipeline.py --max_sequences 100 --k_neighbors 15
+!python scripts/run_full_pipeline.py --max_sequences 100 --k_neighbors 15 --use_small_dataset
 ```
+
+**Note**: The `--use_small_dataset` flag uses WikiText-2 instead of WikiText-103, which is much smaller (~4MB vs ~300MB) and downloads in seconds instead of minutes. Remove this flag for the full dataset.
 
 ### Option 2: Using Python API
 

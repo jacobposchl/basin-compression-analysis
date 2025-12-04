@@ -7,7 +7,8 @@ from datasets import load_dataset
 def load_wikitext(
     split: str = 'test',
     max_samples: Optional[int] = None,
-    min_length: int = 100
+    min_length: int = 100,
+    use_small: bool = False
 ) -> List[str]:
     """
     Load WikiText-103 dataset.
@@ -16,12 +17,18 @@ def load_wikitext(
         split: Dataset split ('train', 'validation', 'test')
         max_samples: Maximum number of samples to load (None for all)
         min_length: Minimum text length in characters
+        use_small: If True, use wikitext-2 (smaller, faster to download) instead of wikitext-103
     
     Returns:
         texts: List of text strings
     """
-    print(f"Loading WikiText-103 ({split} split)...")
-    dataset = load_dataset('wikitext', 'wikitext-103-v1', split=split)
+    if use_small:
+        print(f"Loading WikiText-2 ({split} split) - smaller dataset for faster testing...")
+        dataset = load_dataset('wikitext', 'wikitext-2-v1', split=split)
+    else:
+        print(f"Loading WikiText-103 ({split} split)...")
+        print("Note: This may take a few minutes to download (~300MB). Use use_small=True for faster testing.")
+        dataset = load_dataset('wikitext', 'wikitext-103-v1', split=split)
     
     # Filter by length
     texts = [text for text in dataset['text'] if len(text.strip()) > min_length]
@@ -31,7 +38,8 @@ def load_wikitext(
         texts = texts[:max_samples]
     
     print(f"Loaded {len(texts)} text samples")
-    print(f"Average length: {sum(len(t) for t in texts) / len(texts):.1f} characters")
+    if len(texts) > 0:
+        print(f"Average length: {sum(len(t) for t in texts) / len(texts):.1f} characters")
     
     return texts
 
