@@ -63,7 +63,7 @@ def extract_attention_weights(
         last_error = str(e)
     
     # Approach 2: Use model directly (fallback)
-    if outputs_attentions is None or all(attn is None for attn in outputs_attentions if outputs_attentions else []):
+    if outputs_attentions is None or (outputs_attentions is not None and all(attn is None for attn in outputs_attentions)):
         try:
             with torch.no_grad():
                 model_outputs = model(**inputs, output_attentions=True, return_dict=True)
@@ -76,7 +76,7 @@ def extract_attention_weights(
                 last_error = str(e)
     
     # Approach 3: Use return_dict=False (tuple output)
-    if outputs_attentions is None or all(attn is None for attn in outputs_attentions if outputs_attentions else []):
+    if outputs_attentions is None or (outputs_attentions is not None and all(attn is None for attn in outputs_attentions)):
         try:
             with torch.no_grad():
                 transformer_outputs = model.transformer(**inputs, output_attentions=True, return_dict=False)
