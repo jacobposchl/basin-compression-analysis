@@ -13,7 +13,7 @@ A Python package for investigating compression basins in transformer language mo
 
 1. Clone this repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/jacobposchl/basin-compression-analysis
 cd basin-compression-analysis
 ```
 
