@@ -8,7 +8,7 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from compression_lm.models.model_loader import load_model
+from compression_lm.models.model_loader import load_model, load_fine_tuned_model
 from compression_lm.data.load_datasets import load_wikitext
 from compression_lm.experiments.memorization import run_memorization_experiment
 
@@ -34,6 +34,8 @@ def main():
                        help='Accuracy threshold for considering a sequence memorized (default: 0.8)')
     parser.add_argument('--use_train_split', action='store_true',
                        help='Use training split instead of test split (more likely to find memorized sequences)')
+    parser.add_argument('--fine_tuned_model_path', type=str, default=None,
+                       help='Path to fine-tuned model directory (if provided, loads this instead of base model)')
     
     args = parser.parse_args()
     
@@ -43,7 +45,11 @@ def main():
     
     # Load model
     print("\nLoading model...")
-    model, tokenizer, device = load_model(args.model)
+    if args.fine_tuned_model_path:
+        print(f"Loading fine-tuned model from: {args.fine_tuned_model_path}")
+        model, tokenizer, device = load_fine_tuned_model(args.fine_tuned_model_path)
+    else:
+        model, tokenizer, device = load_model(args.model)
     
     # Load data
     print("\nLoading dataset...")

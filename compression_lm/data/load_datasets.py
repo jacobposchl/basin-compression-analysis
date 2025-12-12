@@ -92,3 +92,65 @@ def load_custom_texts(file_path: str) -> List[str]:
     print(f"Loaded {len(texts)} texts from {file_path}")
     return texts
 
+
+def load_fine_tuning_passages(
+    num_passages: int = 100,
+    min_length: int = 100,
+    max_length: Optional[int] = None,
+    use_small: bool = False,
+    split: str = 'train'
+) -> List[str]:
+    """
+    Load passages from WikiText-103 for fine-tuning.
+    
+    Samples diverse passages with different topics and lengths to ensure
+    good coverage for memorization experiments.
+    
+    Args:
+        num_passages: Number of passages to load
+        min_length: Minimum text length in characters
+        max_length: Maximum text length in characters (None = no limit)
+        use_small: If True, use WikiText-2 instead of WikiText-103
+        split: Dataset split to use ('train', 'validation', 'test')
+    
+    Returns:
+        texts: List of passage strings
+    """
+    print(f"Loading {num_passages} passages for fine-tuning...")
+    
+    # Load dataset
+    if use_small:
+        print(f"Loading WikiText-2 ({split} split)...")
+        dataset = load_dataset('wikitext', 'wikitext-2-v1', split=split)
+    else:
+        print(f"Loading WikiText-103 ({split} split)...")
+        dataset = load_dataset('wikitext', 'wikitext-103-v1', split=split)
+    
+    # Filter by length
+    texts = []
+    for text in dataset['text']:
+        text = text.strip()
+        if len(text) < min_length:
+            continue
+        if max_length is not None and len(text) > max_length:
+            continue
+        # Skip empty or very short texts
+        if len(text) < min_length:
+            continue
+        texts.append(text)
+    
+    # Sample diverse passages (take every Nth passage to get diversity)
+    if len(texts) > num_passages:
+        # Use strided sampling to get diverse passages
+        step = len(texts) // num_passages
+        texts = texts[::step][:num_passages]
+    else:
+        texts = texts[:num_passages]
+    
+    print(f"Loaded {len(texts)} passages for fine-tuning")
+    if len(texts) > 0:
+        avg_length = sum(len(t) for t in texts) / len(texts)
+        print(f"Average passage length: {avg_length:.1f} characters")
+        print(f"Length range: {min(len(t) for t in texts)} - {max(len(t) for t in texts)} characters")
+    
+    return texts

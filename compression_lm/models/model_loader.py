@@ -108,3 +108,68 @@ def get_model_config(model_name='gpt2'):
     
     return model_configs[model_name]
 
+
+def load_fine_tuned_model(
+    model_path: str,
+    device: Optional[torch.device] = None
+) -> tuple:
+    """
+    Load a fine-tuned GPT-2 model from disk.
+    
+    Args:
+        model_path: Path to fine-tuned model directory
+        device: Device to load model on ('cuda', 'cpu', or None for auto-detect)
+    
+    Returns:
+        model: GPT2LMHeadModel instance (fine-tuned)
+        tokenizer: GPT2Tokenizer instance
+        device: torch.device used
+    """
+    import os
+    
+    if not os.path.exists(model_path):
+        raise ValueError(f"Model path does not exist: {model_path}")
+    
+    if device is None:
+        # Auto-detect: prefer CUDA if available
+        if torch.cuda.is_available():
+            device = torch.device('cuda')
+            print("CUDA is available. Using GPU.")
+        else:
+            device = torch.device('cpu')
+            print("CUDA is not available. Using CPU.")
+    else:
+        device = torch.device(device)
+        if device.type == 'cuda' and not torch.cuda.is_available():
+            print("Warning: CUDA requested but not available. Falling back to CPU.")
+            device = torch.device('cpu')
+    
+    print(f"Loading fine-tuned model from: {model_path}")
+    print(f"Using device: {device}")
+    
+    # Load tokenizer
+    tokenizer = GPT2Tokenizer.from_pretrained(model_path)
+    
+    # Set pad token if not present
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    
+    # Load model
+    model = GPT2LMHeadModel.from_pretrained(model_path)
+    model.eval()  # Set to evaluation mode
+    model = model.to(device)
+    
+    # Verify model is on the correct device
+    actual_device = next(model.parameters()).device
+    if actual_device != device:
+        print(f"Warning: Model is on {actual_device} but requested {device}")
+    else:
+        print(f"Fine-tuned model successfully loaded on {device}")
+    
+    if device.type == 'cuda':
+        print(f"GPU: {torch.cuda.get_device_name(0)}")
+        print(f"Memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB")
+    
+    print("Fine-tuned model loaded successfully!")
+    
+    return model, tokenizer, device
