@@ -1,6 +1,7 @@
 """Model loading utilities for GPT-2 and other transformer models."""
 
 import torch
+from typing import Optional
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
 
 
