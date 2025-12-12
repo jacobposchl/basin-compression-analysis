@@ -17,7 +17,7 @@ def prepare_training_dataset(
     texts: List[str],
     tokenizer: GPT2Tokenizer,
     max_length: int = 128,
-    min_length: int = 50
+    min_length: int = 20  # Lowered from 50 to allow shorter test sequences
 ) -> Dataset:
     """
     Prepare texts for fine-tuning.

@@ -26,14 +26,24 @@ def test_fine_tuning_basic():
     print("Loading model...")
     model, tokenizer, device = load_model('gpt2')
     
-    # Create small test dataset (5 passages)
+    # Create small test dataset (5 passages) - need longer texts for fine-tuning
     print("Creating test dataset (5 passages)...")
     test_texts = [
-        "This is a test passage number one for fine-tuning verification.",
-        "This is a test passage number two for fine-tuning verification.",
-        "This is a test passage number three for fine-tuning verification.",
-        "This is a test passage number four for fine-tuning verification.",
-        "This is a test passage number five for fine-tuning verification.",
+        "This is a test passage number one for fine-tuning verification. " * 20 + 
+        "The quick brown fox jumps over the lazy dog. " * 10 +
+        "Fine-tuning is an important technique in machine learning.",
+        "This is a test passage number two for fine-tuning verification. " * 20 +
+        "Machine learning models can be adapted to specific tasks. " * 10 +
+        "Transfer learning helps improve model performance on new domains.",
+        "This is a test passage number three for fine-tuning verification. " * 20 +
+        "Natural language processing has advanced significantly. " * 10 +
+        "Transformer models have revolutionized the field of AI.",
+        "This is a test passage number four for fine-tuning verification. " * 20 +
+        "Deep learning requires large amounts of training data. " * 10 +
+        "Neural networks can learn complex patterns from examples.",
+        "This is a test passage number five for fine-tuning verification. " * 20 +
+        "Language models can generate coherent text sequences. " * 10 +
+        "Fine-tuning allows models to specialize for specific applications.",
     ]
     
     # Fine-tune on small dataset
@@ -45,7 +55,7 @@ def test_fine_tuning_basic():
         num_epochs=1,
         learning_rate=5e-5,
         batch_size=2,
-        max_length=64,
+        max_length=128,  # Increased to accommodate longer texts
         device=device
     )
     
