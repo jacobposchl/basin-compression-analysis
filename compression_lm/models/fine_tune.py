@@ -124,7 +124,6 @@ def fine_tune_model(
         learning_rate=learning_rate,
         logging_steps=logging_steps,
         save_strategy='no',  # Don't save checkpoints during training
-        evaluation_strategy='no',
         report_to='none',  # Disable wandb/tensorboard
         remove_unused_columns=False,
     )
