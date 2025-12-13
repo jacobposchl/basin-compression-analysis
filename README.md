@@ -68,6 +68,29 @@ python scripts/run_token_importance.py --max_sequences 100
 python scripts/run_linguistic.py --max_sequences 100
 ```
 
+### Running Training Dynamics Experiment (NEW)
+
+Track how compression evolves across multiple training epochs:
+
+```bash
+# Quick test (~1 hour on A100)
+python scripts/run_training_dynamics.py --quick_test --num_passages 50
+
+# Standard experiment (~5-6 hours on A100) - RECOMMENDED
+python scripts/run_training_dynamics.py \
+    --num_passages 100 \
+    --epoch_schedule 1,3,5,10,20,30,50,100 \
+    --output_dir dynamics_results
+
+# Visualize results
+python scripts/visualize_training_dynamics.py \
+    --results_file dynamics_results/training_dynamics_results.pkl
+```
+
+**For Google Colab:** Use `notebooks/training_dynamics_experiment.ipynb` for an interactive interface.
+
+**See detailed guide:** [TRAINING_DYNAMICS_GUIDE.md](TRAINING_DYNAMICS_GUIDE.md)
+
 ### Running Full Pipeline
 
 ```bash
@@ -109,13 +132,48 @@ compression_lm/
 This package investigates:
 
 1. **Memorization Detection**: Do memorized sequences exhibit different compression patterns than novel sequences?
-2. **Token Importance**: Does compression predict which tokens are important for predictions?
-3. **Linguistic Structure**: Do compression patterns align with linguistic categories (POS tags)?
-4. **Layer-wise Organization**: How do compression patterns evolve across transformer layers?
+2. **Training Dynamics** (NEW): How does compression evolve as models transition from initial exposure to deep memorization? Does it follow a U-shaped curve?
+3. **Token Importance**: Does compression predict which tokens are important for predictions?
+4. **Linguistic Structure**: Do compression patterns align with linguistic categories (POS tags)?
+5. **Layer-wise Organization**: How do compression patterns evolve across transformer layers?
+
+## Key Experiments
+
+### 1. Memorization Experiment
+Tests whether fine-tuned passages show different compression than novel passages.
+
+**Run:** `python scripts/run_memorization.py --num_passages 100 --num_epochs 3 --use_ground_truth`
+
+### 2. Training Dynamics Experiment (NEW)
+Multi-epoch experiment tracking compression evolution from initial learning through memorization.
+
+**Features:**
+- Trains at multiple epoch counts (e.g., 1, 3, 5, 10, 20, 30, 50, 100)
+- Tests for U-shaped compression trajectory
+- Identifies memorization onset point
+- Layer-wise temporal analysis
+- Comprehensive visualizations
+
+**Run:** `python scripts/run_training_dynamics.py --num_passages 100`
+
+**Guide:** See [TRAINING_DYNAMICS_GUIDE.md](TRAINING_DYNAMICS_GUIDE.md)
+
+### 3. Token Importance Experiment
+Analyzes whether compression correlates with token importance for next-token prediction.
+
+**Run:** `python scripts/run_token_importance.py --max_sequences 100`
+
+### 4. Linguistic Structure Experiment
+Tests alignment between compression and linguistic categories (POS tags).
+
+**Run:** `python scripts/run_linguistic.py --max_sequences 100`
 
 ## Documentation
 
-For detailed implementation guide and methodology, see `experiment-proposal.md`.
+- **General Implementation:** `experiment-proposal.md`
+- **Training Dynamics Guide:** `TRAINING_DYNAMICS_GUIDE.md`
+- **Implementation Summary:** `IMPLEMENTATION_SUMMARY.md`
+- **Colab Setup:** `notebooks/COLAB_GUIDE.md`
 
 ## License
 
