@@ -37,10 +37,31 @@ from compression_lm.data.load_datasets import load_wikitext
 from compression_lm.data.memorization import detect_memorized_sequences
 from compression_lm.models.extract_states import extract_dataset_states
 from compression_lm.compression.metric import compute_all_layers_compression
-from compression_lm.experiments.memorization import (
-    run_memorization_experiment,
-    analyze_memorization_layer
-)
+from compression_lm.experiments.memorization import analyze_memorization_compression
+
+
+def analyze_memorization_layer(compression_scores, memorization_labels, compression_metadata, layer_idx):
+    """
+    Wrapper for analyze_memorization_compression to match expected interface.
+    
+    Args:
+        compression_scores: Array of compression scores for all tokens
+        memorization_labels: List of bools, one per sequence
+        compression_metadata: Dict with 'sequence_indices' key from compression computation
+        layer_idx: Which layer these scores came from
+    
+    Returns:
+        Dict with analysis results
+    """
+    # Extract sequence indices from compression metadata
+    sequence_indices = compression_metadata['sequence_indices']
+    
+    return analyze_memorization_compression(
+        compression_scores=compression_scores,
+        memorization_labels=memorization_labels,
+        sequence_indices=sequence_indices,
+        layer_idx=layer_idx
+    )
 
 
 def compute_detailed_reproduction_metrics(model, tokenizer, passages, device='cuda'):
@@ -226,7 +247,7 @@ def train_and_analyze_checkpoint(
         analysis = analyze_memorization_layer(
             compression_scores=compression_results[layer_idx]['scores'],
             memorization_labels=ground_truth_labels,
-            metadata=metadata,
+            compression_metadata=layer_metadata[layer_idx],
             layer_idx=layer_idx
         )
         layer_analyses[layer_idx] = analysis
