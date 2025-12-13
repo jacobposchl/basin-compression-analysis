@@ -36,7 +36,7 @@ from compression_lm.models.fine_tune import fine_tune_model
 from compression_lm.data.load_datasets import load_wikitext
 from compression_lm.data.memorization import detect_memorized_sequences
 from compression_lm.models.extract_states import extract_dataset_states
-from compression_lm.compression.metric import compute_compression_all_layers
+from compression_lm.compression.metric import compute_all_layers_compression
 from compression_lm.experiments.memorization import (
     run_memorization_experiment,
     analyze_memorization_layer
@@ -204,11 +204,19 @@ def train_and_analyze_checkpoint(
     
     # Compute compression for all layers
     print("\nComputing compression scores...")
-    compression_results = compute_compression_all_layers(
+    layer_compression, layer_metadata = compute_all_layers_compression(
         all_states,
         k=k_neighbors,
         use_faiss=True
     )
+    
+    # Convert to format expected by analysis functions
+    compression_results = {}
+    for layer_idx in layer_compression.keys():
+        compression_results[layer_idx] = {
+            'scores': layer_compression[layer_idx],
+            **layer_metadata[layer_idx]
+        }
     
     # Analyze each layer
     print("\nAnalyzing memorization-compression relationship...")
