@@ -191,7 +191,7 @@ def train_and_analyze_checkpoint(
     fine_tune_model(
         model=model,
         tokenizer=tokenizer,
-        texts=training_passages,
+        training_texts=training_passages,
         num_epochs=num_epochs,
         learning_rate=learning_rate,
         batch_size=batch_size,
