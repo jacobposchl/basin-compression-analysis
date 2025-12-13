@@ -35,7 +35,7 @@ from compression_lm.models.model_loader import load_model
 from compression_lm.models.fine_tune import fine_tune_model
 from compression_lm.data.load_datasets import load_wikitext
 from compression_lm.data.memorization import detect_memorized_sequences
-from compression_lm.models.extract_states import extract_hidden_states_batch
+from compression_lm.models.extract_states import extract_dataset_states
 from compression_lm.compression.metric import compute_compression_all_layers
 from compression_lm.experiments.memorization import (
     run_memorization_experiment,
@@ -198,7 +198,7 @@ def train_and_analyze_checkpoint(
     
     # Extract hidden states
     print("\nExtracting hidden states...")
-    all_states, all_tokens, metadata = extract_hidden_states_batch(
+    all_states, all_tokens, metadata = extract_dataset_states(
         model, tokenizer, all_passages, device=device, max_length=max_length
     )
     
