@@ -3,6 +3,15 @@ Quick test to verify memorization detection works.
 Runs a tiny experiment in ~2 minutes to test the methodology.
 """
 
+# Disable warnings
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
+os.environ['WANDB_DISABLED'] = 'true'
+
+import warnings
+warnings.filterwarnings('ignore')
+
 import torch
 from transformers import GPT2LMHeadModel, GPT2Tokenizer, Trainer, TrainingArguments
 from datasets import load_dataset
@@ -10,6 +19,10 @@ import numpy as np
 from pathlib import Path
 import tempfile
 import shutil
+import logging
+
+# Suppress transformers logging
+logging.getLogger('transformers').setLevel(logging.ERROR)
 
 
 def calculate_perplexity(model, tokenizer, texts, device='cuda'):
@@ -45,10 +58,11 @@ def quick_memorization_test():
     print("Loading data...")
     dataset = load_dataset('wikitext', 'wikitext-2-raw-v1', split='train', streaming=True)
     
-    train_texts = []
-    for item in dataset:
-        if len(train_texts) >= 10:
-            break
+    train_texts = [], force_download=False)
+    tokenizer = GPT2Tokenizer.from_pretrained('gpt2', force_download=False)
+    tokenizer.pad_token = tokenizer.eos_token
+    model.to(device)
+    print("Model loaded."
         text = item['text'].strip()
         if len(text) > 100:
             train_texts.append(text)
@@ -101,6 +115,8 @@ def quick_memorization_test():
             learning_rate=5e-5,
             logging_steps=100,
             save_steps=1000,
+            report_to='none',
+            disable_tqdm=False,
             logging_dir=None,
         )
         
