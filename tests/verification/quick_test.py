@@ -16,6 +16,7 @@ import torch
 from transformers import GPT2LMHeadModel, GPT2Tokenizer, Trainer, TrainingArguments
 from datasets import load_dataset
 import numpy as np
+from scipy import stats
 from pathlib import Path
 import tempfile
 import shutil
@@ -78,6 +79,9 @@ def quick_memorization_test():
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
     tokenizer.pad_token = tokenizer.eos_token
     model.to(device)
+    print("Model loaded.\n")
+    
+    # Baseline perplexity
     print("="*70)
     print("PRE-TRAINING BASELINE")
     print("="*70)
@@ -88,12 +92,7 @@ def quick_memorization_test():
     print(f"  Mean perplexity: {train_ppl_before:.3f}")
     print(f"  Std perplexity:  {np.std([np.exp(l) for l in train_losses_before]):.3f}")
     print(f"  Mean tokens:     {np.mean(train_tokens):.1f}")
-    print(f" " + "="*70)
-    print("FINE-TUNING")
-    print("="*70)
-    print(f"Epochs: 20, LR: 5e-5, Batch: 2")
-    print(f"Training samples: {len(train_texts)}")
-    print(ain_losses_before):.3f}, {max(train_losses_before):.3f}]")
+    print(f"  Loss range:      [{min(train_losses_before):.3f}, {max(train_losses_before):.3f}]")
     
     print(f"\nTest Set (n={len(test_texts)}):")
     print(f"  Mean perplexity: {test_ppl_before:.3f}")
@@ -102,13 +101,15 @@ def quick_memorization_test():
     print(f"  Loss range:      [{min(test_losses_before):.3f}, {max(test_losses_before):.3f}]")
     
     baseline_ratio = test_ppl_before / train_ppl_before
-    print(f"\nBaseline ratio (test/train): {baseline_ratio:.3model, tokenizer, train_texts, device)
-    test_ppl_before = calculate_perplexity(model, tokenizer, test_texts, device)
-    print(f"  Train PPL: {train_ppl_before:.2f}")
-    print(f"  Test PPL:  {test_ppl_before:.2f}")
+    print(f"\nBaseline ratio (test/train): {baseline_ratio:.3f}")
     
     # Quick training
-    print("\nTraining for 20 epochs...")
+    print("\n" + "="*70)
+    print("FINE-TUNING")
+    print("="*70)
+    print(f"Epochs: 20, LR: 5e-5, Batch: 2")
+    print(f"Training samples: {len(train_texts)}")
+    print()
     
     with tempfile.TemporaryDirectory() as tmpdir:
         # Tokenize training data
@@ -132,7 +133,26 @@ def quick_memorization_test():
         train_dataset = SimpleDataset(train_encodings)
         
         training_args = TrainingArguments(
-            o" + "="*70)
+            output_dir=tmpdir,
+            num_train_epochs=20,
+            per_device_train_batch_size=2,
+            learning_rate=5e-5,
+            save_strategy='no',
+            logging_steps=1000,
+            report_to='none',
+            disable_tqdm=False
+        )
+        
+        trainer = Trainer(
+            model=model,
+            args=training_args,
+            train_dataset=train_dataset,
+        )
+        
+        trainer.train()
+    
+    # After training
+    print("\n" + "="*70)
     print("POST-TRAINING EVALUATION")
     print("="*70)
     train_ppl_after, train_losses_after, _ = calculate_perplexity(model, tokenizer, train_texts, device)
@@ -151,7 +171,6 @@ def quick_memorization_test():
     print(f"  Δ from baseline: {test_ppl_after - test_ppl_before:.3f} ({((test_ppl_after/test_ppl_before - 1)*100):.1f}%)")
     
     # Statistical analysis
-    from scipy import stats
     ratio = test_ppl_after / train_ppl_after
     
     print("\n" + "="*70)
@@ -191,27 +210,7 @@ def quick_memorization_test():
         print("✗ NO SIGNIFICANT MEMORIZATION")
         print(f"\n  Test perplexity only {ratio:.2f}x higher than training.")
         print(f"  Threshold: 2.0x for memorization detection.")
-        print(f"  Consider: more epochs, smaller dataset, or higher learning rate
-    # After training
-    print("\nAfter training:")
-    train_ppl_after = calculate_perplexity(model, tokenizer, train_texts, device)
-    test_ppl_after = calculate_perplexity(model, tokenizer, test_texts, device)
-    print(f"  Train PPL: {train_ppl_after:.2f}")
-    print(f"  Test PPL:  {test_ppl_after:.2f}")
-    
-    ratio = test_ppl_after / train_ppl_after
-    print(f"\n  Ratio: {ratio:.2f}x")
-    
-    # Verdict
-    print("\n" + "="*70)
-    if ratio >= 2.0:
-        print("✓ TEST PASSED")
-        print(f"Memorization detection works! Ratio = {ratio:.2f}x")
-        print("Your methodology is sound.")
-    else:
-        print("✗ TEST FAILED")
-        print(f"Ratio only {ratio:.2f}x - should be ≥2.0x")
-        print("May need more epochs or different hyperparameters.")
+        print(f"  Consider: more epochs, smaller dataset, or higher learning rate.")
     print("="*70)
     
     return ratio >= 2.0
