@@ -1,13 +1,15 @@
 """Fine-tuning utilities for GPT-2 models."""
 
 import torch
-from typing import List, Optional, Dict
+import numpy as np
+from typing import List, Optional, Dict, Callable
 from transformers import (
     GPT2LMHeadModel,
     GPT2Tokenizer,
     Trainer,
     TrainingArguments,
-    DataCollatorForLanguageModeling
+    DataCollatorForLanguageModeling,
+    TrainerCallback
 )
 from datasets import Dataset
 from tqdm import tqdm
@@ -69,6 +71,56 @@ def prepare_training_dataset(
     return dataset
 
 
+class MemorizationTrackingCallback(TrainerCallback):
+    """Callback to track perplexity on train/test sets during training."""
+    
+    def __init__(self, model, tokenizer, train_texts, test_texts, device, eval_every_n_epochs=1):
+        self.model = model
+        self.tokenizer = tokenizer
+        self.train_texts = train_texts
+        self.test_texts = test_texts
+        self.device = device
+        self.eval_every_n_epochs = eval_every_n_epochs
+        self.history = []
+        
+    def compute_perplexity(self, texts):
+        """Compute mean perplexity on a set of texts."""
+        self.model.eval()
+        losses = []
+        
+        with torch.no_grad():
+            for text in texts:
+                tokens = self.tokenizer(text, return_tensors='pt', truncation=True, max_length=128)
+                input_ids = tokens.input_ids.to(self.device)
+                outputs = self.model(input_ids, labels=input_ids)
+                losses.append(outputs.loss.item())
+        
+        mean_loss = np.mean(losses)
+        return np.exp(mean_loss)
+    
+    def on_epoch_end(self, args, state, control, **kwargs):
+        """Evaluate perplexity at end of each epoch."""
+        epoch = int(state.epoch)
+        
+        if epoch % self.eval_every_n_epochs == 0 or epoch == int(args.num_train_epochs):
+            train_ppl = self.compute_perplexity(self.train_texts[:20])  # Sample for speed
+            test_ppl = self.compute_perplexity(self.test_texts[:20])
+            ratio = test_ppl / train_ppl if train_ppl > 0 else float('inf')
+            
+            self.history.append({
+                'epoch': epoch,
+                'train_ppl': train_ppl,
+                'test_ppl': test_ppl,
+                'ratio': ratio
+            })
+            
+            # Print update
+            print(f"\n  Epoch {epoch:3d} | Train PPL: {train_ppl:7.2f} | Test PPL: {test_ppl:7.2f} | Ratio: {ratio:5.2f}x")
+            
+            # Switch back to training mode
+            self.model.train()
+
+
 def fine_tune_model(
     model: GPT2LMHeadModel,
     tokenizer: GPT2Tokenizer,
@@ -79,7 +131,9 @@ def fine_tune_model(
     max_length: int = 128,
     output_dir: Optional[str] = None,
     device: Optional[torch.device] = None,
-    logging_steps: int = 10
+    logging_steps: int = 10,
+    test_texts: Optional[List[str]] = None,
+    track_memorization: bool = False
 ) -> GPT2LMHeadModel:
     """
     Fine-tune GPT-2 model on given texts.
@@ -95,6 +149,8 @@ def fine_tune_model(
         output_dir: Directory to save model (None = don't save)
         device: Device to train on (None = use model's device)
         logging_steps: How often to log training progress
+        test_texts: Optional list of test texts for memorization tracking
+        track_memorization: If True and test_texts provided, display live perplexity tracking
     
     Returns:
         fine_tuned_model: Fine-tuned model (same instance, modified in-place)
@@ -137,17 +193,47 @@ def fine_tune_model(
     # Switch model to training mode
     model.train()
     
+    # Set up memorization tracking callback if requested
+    callbacks = []
+    if track_memorization and test_texts is not None:
+        print("\nEnabling live memorization tracking...")
+        eval_frequency = max(1, num_epochs // 10) if num_epochs >= 10 else 1
+        callback = MemorizationTrackingCallback(
+            model=model,
+            tokenizer=tokenizer,
+            train_texts=training_texts,
+            test_texts=test_texts,
+            device=device,
+            eval_every_n_epochs=eval_frequency
+        )
+        callbacks.append(callback)
+    
     # Create trainer
     trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=dataset,
         data_collator=data_collator,
+        callbacks=callbacks,
     )
     
     # Train
     print("\nStarting training...")
+    if track_memorization and test_texts is not None:
+        print(f"{'Epoch':>7} | {'Train PPL':>9} | {'Test PPL':>8} | {'Ratio':>7}")
+        print("-" * 45)
+    
     trainer.train()
+    
+    # Print final memorization status
+    if track_memorization and test_texts is not None and callbacks:
+        print("\n" + "="*45)
+        print("MEMORIZATION TRACKING SUMMARY")
+        print("="*45)
+        for entry in callback.history:
+            status = "✓" if entry['ratio'] >= 2.0 else " "
+            print(f"{status} Epoch {entry['epoch']:3d}: Ratio = {entry['ratio']:5.2f}x")
+        print("="*45)
     
     # Switch back to evaluation mode
     model.eval()
