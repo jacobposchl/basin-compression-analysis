@@ -29,6 +29,7 @@ def calculate_perplexity(model, tokenizer, texts, device='cuda'):
     """Calculate perplexity on a list of texts."""
     model.eval()
     losses = []
+    token_counts = []
     
     with torch.no_grad():
         for text in texts:
@@ -36,8 +37,10 @@ def calculate_perplexity(model, tokenizer, texts, device='cuda'):
             input_ids = tokens.input_ids.to(device)
             outputs = model(input_ids, labels=input_ids)
             losses.append(outputs.loss.item())
+            token_counts.append(input_ids.size(1))
     
-    return np.exp(np.mean(losses))
+    mean_loss = np.mean(losses)
+    return np.exp(mean_loss), losses, token_counts
 
 
 def quick_memorization_test():
@@ -75,11 +78,31 @@ def quick_memorization_test():
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
     tokenizer.pad_token = tokenizer.eos_token
     model.to(device)
-    print("Model loaded.\n")
+    print("="*70)
+    print("PRE-TRAINING BASELINE")
+    print("="*70)
+    train_ppl_before, train_losses_before, train_tokens = calculate_perplexity(model, tokenizer, train_texts, device)
+    test_ppl_before, test_losses_before, test_tokens = calculate_perplexity(model, tokenizer, test_texts, device)
     
-    # Baseline perplexity
-    print("Before training:")
-    train_ppl_before = calculate_perplexity(model, tokenizer, train_texts, device)
+    print(f"\nTraining Set (n={len(train_texts)}):")
+    print(f"  Mean perplexity: {train_ppl_before:.3f}")
+    print(f"  Std perplexity:  {np.std([np.exp(l) for l in train_losses_before]):.3f}")
+    print(f"  Mean tokens:     {np.mean(train_tokens):.1f}")
+    print(f" " + "="*70)
+    print("FINE-TUNING")
+    print("="*70)
+    print(f"Epochs: 20, LR: 5e-5, Batch: 2")
+    print(f"Training samples: {len(train_texts)}")
+    print(ain_losses_before):.3f}, {max(train_losses_before):.3f}]")
+    
+    print(f"\nTest Set (n={len(test_texts)}):")
+    print(f"  Mean perplexity: {test_ppl_before:.3f}")
+    print(f"  Std perplexity:  {np.std([np.exp(l) for l in test_losses_before]):.3f}")
+    print(f"  Mean tokens:     {np.mean(test_tokens):.1f}")
+    print(f"  Loss range:      [{min(test_losses_before):.3f}, {max(test_losses_before):.3f}]")
+    
+    baseline_ratio = test_ppl_before / train_ppl_before
+    print(f"\nBaseline ratio (test/train): {baseline_ratio:.3model, tokenizer, train_texts, device)
     test_ppl_before = calculate_perplexity(model, tokenizer, test_texts, device)
     print(f"  Train PPL: {train_ppl_before:.2f}")
     print(f"  Test PPL:  {test_ppl_before:.2f}")
@@ -109,25 +132,66 @@ def quick_memorization_test():
         train_dataset = SimpleDataset(train_encodings)
         
         training_args = TrainingArguments(
-            output_dir=tmpdir,
-            num_train_epochs=20,
-            per_device_train_batch_size=2,
-            learning_rate=5e-5,
-            logging_steps=100,
-            save_steps=1000,
-            logging_dir=None,
-            report_to='none',
-            disable_tqdm=False,
-        )
-        
-        trainer = Trainer(
-            model=model,
-            args=training_args,
-            train_dataset=train_dataset,
-        )
-        
-        trainer.train()
+            o" + "="*70)
+    print("POST-TRAINING EVALUATION")
+    print("="*70)
+    train_ppl_after, train_losses_after, _ = calculate_perplexity(model, tokenizer, train_texts, device)
+    test_ppl_after, test_losses_after, _ = calculate_perplexity(model, tokenizer, test_texts, device)
     
+    print(f"\nTraining Set (n={len(train_texts)}):")
+    print(f"  Mean perplexity: {train_ppl_after:.3f}")
+    print(f"  Std perplexity:  {np.std([np.exp(l) for l in train_losses_after]):.3f}")
+    print(f"  Loss range:      [{min(train_losses_after):.3f}, {max(train_losses_after):.3f}]")
+    print(f"  Δ from baseline: {train_ppl_after - train_ppl_before:.3f} ({((train_ppl_after/train_ppl_before - 1)*100):.1f}%)")
+    
+    print(f"\nTest Set (n={len(test_texts)}):")
+    print(f"  Mean perplexity: {test_ppl_after:.3f}")
+    print(f"  Std perplexity:  {np.std([np.exp(l) for l in test_losses_after]):.3f}")
+    print(f"  Loss range:      [{min(test_losses_after):.3f}, {max(test_losses_after):.3f}]")
+    print(f"  Δ from baseline: {test_ppl_after - test_ppl_before:.3f} ({((test_ppl_after/test_ppl_before - 1)*100):.1f}%)")
+    
+    # Statistical analysis
+    from scipy import stats
+    ratio = test_ppl_after / train_ppl_after
+    
+    print("\n" + "="*70)
+    print("MEMORIZATION METRICS")
+    print("="*70)
+    print(f"\nPerplexity Ratio (test/train): {ratio:.3f}x")
+    print(f"  Baseline ratio: {baseline_ratio:.3f}x")
+    print(f"  Change in ratio: {ratio - baseline_ratio:.3f}x")
+    
+    # Effect sizes
+    train_effect = (train_ppl_before - train_ppl_after) / np.std([np.exp(l) for l in train_losses_before])
+    test_effect = (test_ppl_after - test_ppl_before) / np.std([np.exp(l) for l in test_losses_before])
+    
+    print(f"\nEffect Sizes (Cohen's d):")
+    print(f"  Training set improvement: {train_effect:.3f} (before→after)")
+    print(f"  Test set degradation:     {test_effect:.3f} (before→after)")
+    
+    # Per-sequence analysis
+    train_ppls_after = [np.exp(l) for l in train_losses_after]
+    test_ppls_after = [np.exp(l) for l in test_losses_after]
+    
+    print(f"\nPer-Sequence Analysis:")
+    print(f"  Training sequences with PPL < 5: {sum(1 for p in train_ppls_after if p < 5)}/{len(train_ppls_after)}")
+    print(f"  Training sequences with PPL < 2: {sum(1 for p in train_ppls_after if p < 2)}/{len(train_ppls_after)}")
+    print(f"  Test sequences with PPL > 50:   {sum(1 for p in test_ppls_after if p > 50)}/{len(test_ppls_after)}")
+    
+    # Verdict
+    print("\n" + "="*70)
+    print("VERDICT")
+    print("="*70)
+    if ratio >= 2.0:
+        print("✓ MEMORIZATION DETECTED")
+        print(f"\n  Test perplexity is {ratio:.2f}x higher than training perplexity.")
+        print(f"  Model has successfully memorized the training set.")
+        print(f"  Methodology is validated for detecting memorization.")
+    else:
+        print("✗ NO SIGNIFICANT MEMORIZATION")
+        print(f"\n  Test perplexity only {ratio:.2f}x higher than training.")
+        print(f"  Threshold: 2.0x for memorization detection.")
+        print(f"  Consider: more epochs, smaller dataset, or higher learning rate
     # After training
     print("\nAfter training:")
     train_ppl_after = calculate_perplexity(model, tokenizer, train_texts, device)
