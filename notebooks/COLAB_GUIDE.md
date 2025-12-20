@@ -2,6 +2,8 @@
 
 This guide explains how to run the compression basins experiments in Google Colab.
 
+> **⭐ NEW**: The training dynamics notebook now includes built-in verification tests to ensure your experiments are valid! See the "Phase 1: Verify Memorization" section after running your experiment.
+
 ## Quick Start
 
 ### 1. Open Colab and Enable GPU
