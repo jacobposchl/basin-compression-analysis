@@ -20,6 +20,63 @@ from compression_lm.compression.metric import compute_all_layers_compression
 from compression_lm.experiments.memorization import analyze_memorization_compression
 
 
+def compute_perplexity_metrics(model, tokenizer, passages, device='cuda', max_length=512):
+    """
+    Compute per-passage perplexity.
+    
+    Perplexity measures how "surprised" the model is by text.
+    Lower perplexity = more familiar/likely text.
+    
+    Args:
+        model: Language model
+        tokenizer: Tokenizer
+        passages: List of text passages
+        device: Device to run on
+        max_length: Maximum sequence length
+    
+    Returns:
+        List of dicts with perplexity metrics per passage
+    """
+    results = []
+    model.eval()
+    
+    with torch.no_grad():
+        for idx, passage in enumerate(tqdm(passages, desc="Computing perplexity")):
+            try:
+                # Tokenize
+                inputs = tokenizer(
+                    passage, 
+                    return_tensors='pt', 
+                    truncation=True, 
+                    max_length=max_length
+                ).to(device)
+                
+                # Get loss (negative log likelihood)
+                outputs = model(**inputs, labels=inputs['input_ids'])
+                loss = outputs.loss.item()
+                
+                # Perplexity = exp(loss)
+                perplexity = torch.exp(torch.tensor(loss)).item()
+                
+                results.append({
+                    'passage_idx': idx,
+                    'perplexity': perplexity,
+                    'loss': loss,
+                    'num_tokens': inputs['input_ids'].shape[1]
+                })
+                
+            except Exception as e:
+                results.append({
+                    'passage_idx': idx,
+                    'perplexity': float('inf'),
+                    'loss': float('inf'),
+                    'num_tokens': 0,
+                    'error': str(e)
+                })
+    
+    return results
+
+
 def compute_detailed_reproduction_metrics(model, tokenizer, passages, device='cuda'):
     """Compute detailed per-passage reproduction metrics."""
     results = []
@@ -148,6 +205,10 @@ def analyze_checkpoint(model, tokenizer, training_passages, novel_passages,
     print("Computing reproduction metrics...")
     reproduction_metrics = compute_detailed_reproduction_metrics(model, tokenizer, all_passages, device)
     
+    # Compute perplexity
+    print("Computing perplexity metrics...")
+    perplexity_metrics = compute_perplexity_metrics(model, tokenizer, all_passages, device, max_length=max_length)
+    
     # Extract hidden states
     print("Extracting hidden states...")
     all_states, all_tokens, metadata = extract_dataset_states(
@@ -177,17 +238,40 @@ def analyze_checkpoint(model, tokenizer, training_passages, novel_passages,
     best_layer_idx = max(layer_analyses.keys(), 
                         key=lambda idx: abs(layer_analyses[idx]['correlation']))
     
+    # Calculate perplexity statistics
+    training_perplexities = [m['perplexity'] for m in perplexity_metrics[:len(training_passages)] 
+                            if m['perplexity'] != float('inf')]
+    novel_perplexities = [m['perplexity'] for m in perplexity_metrics[len(training_passages):] 
+                         if m['perplexity'] != float('inf')]
+    
+    # Combine reproduction and perplexity metrics
+    combined_metrics = []
+    for repro, ppl in zip(reproduction_metrics, perplexity_metrics):
+        combined_metrics.append({
+            **repro,
+            'perplexity': ppl['perplexity'],
+            'loss': ppl['loss']
+        })
+    
     results_dict = {
         'epoch': current_epoch,
         'timestamp': datetime.now().isoformat(),
         'reproduction_metrics': reproduction_metrics,
+        'perplexity_metrics': perplexity_metrics,
+        'combined_metrics': combined_metrics,
         'layer_analyses': layer_analyses,
         'best_layer': best_layer_idx,
         'best_correlation': layer_analyses[best_layer_idx]['correlation'],
         'best_p_value': layer_analyses[best_layer_idx]['correlation_p'],
         'num_memorized': sum([m['is_memorized'] for m in reproduction_metrics]),
         'mean_accuracy': np.mean([m['overall_accuracy'] for m in reproduction_metrics]),
-        'median_accuracy': np.median([m['overall_accuracy'] for m in reproduction_metrics])
+        'median_accuracy': np.median([m['overall_accuracy'] for m in reproduction_metrics]),
+        'mean_training_perplexity': np.mean(training_perplexities) if training_perplexities else float('inf'),
+        'mean_novel_perplexity': np.mean(novel_perplexities) if novel_perplexities else float('inf'),
+        'perplexity_gap': (np.mean(novel_perplexities) - np.mean(training_perplexities)) 
+                         if (training_perplexities and novel_perplexities) else float('inf'),
+        'median_training_perplexity': np.median(training_perplexities) if training_perplexities else float('inf'),
+        'median_novel_perplexity': np.median(novel_perplexities) if novel_perplexities else float('inf')
     }
     
     # Free memory
@@ -336,6 +420,11 @@ def run_continuous_training_experiment(
                 'memorization_rate': results['num_memorized'] / (len(training_passages) + len(novel_passages)),
                 'mean_accuracy': results['mean_accuracy'],
                 'median_accuracy': results['median_accuracy'],
+                'mean_training_perplexity': results['mean_training_perplexity'],
+                'mean_novel_perplexity': results['mean_novel_perplexity'],
+                'perplexity_gap': results['perplexity_gap'],
+                'median_training_perplexity': results['median_training_perplexity'],
+                'median_novel_perplexity': results['median_novel_perplexity'],
                 'best_layer': results['best_layer'],
                 'best_correlation': results['best_correlation'],
                 'best_p_value': results['best_p_value'],
