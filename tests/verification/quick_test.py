@@ -58,11 +58,10 @@ def quick_memorization_test():
     print("Loading data...")
     dataset = load_dataset('wikitext', 'wikitext-2-raw-v1', split='train', streaming=True)
     
-    train_texts = [], force_download=False)
-    tokenizer = GPT2Tokenizer.from_pretrained('gpt2', force_download=False)
-    tokenizer.pad_token = tokenizer.eos_token
-    model.to(device)
-    print("Model loaded."
+    train_texts = []
+    for item in dataset:
+        if len(train_texts) >= 10:
+            break
         text = item['text'].strip()
         if len(text) > 100:
             train_texts.append(text)
@@ -76,9 +75,10 @@ def quick_memorization_test():
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
     tokenizer.pad_token = tokenizer.eos_token
     model.to(device)
+    print("Model loaded.\n")
     
     # Baseline perplexity
-    print("\nBefore training:")
+    print("Before training:")
     train_ppl_before = calculate_perplexity(model, tokenizer, train_texts, device)
     test_ppl_before = calculate_perplexity(model, tokenizer, test_texts, device)
     print(f"  Train PPL: {train_ppl_before:.2f}")
@@ -115,9 +115,9 @@ def quick_memorization_test():
             learning_rate=5e-5,
             logging_steps=100,
             save_steps=1000,
+            logging_dir=None,
             report_to='none',
             disable_tqdm=False,
-            logging_dir=None,
         )
         
         trainer = Trainer(
